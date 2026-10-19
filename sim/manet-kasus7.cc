@@ -5,7 +5,9 @@
  *
  * Dasar: examples/routing/manet-routing-compare.cc (ns-3.49)
  *
- * STATUS: Step 4 (PDR, delay, overhead ke CSV per run). CP2 selesai.
+ * STATUS: CP3 (validasi): tambahan trace relay (UnicastForward), cek konektivitas posisi,
+ * dan pemisahan byte hello AODV. Tidak ada RNG yang disentuh, jadi hasil seed 1 harus sama
+ * persis dengan CP2 (sent/rcvd).
  */
 
 #include "ns3/aodv-module.h"
@@ -17,12 +19,14 @@
 #include "ns3/yans-wifi-helper.h"
 
 #include "ns3/ipv4-header.h"
+#include "ns3/ipv4-l3-protocol.h"
 #include "ns3/udp-header.h"
 
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 using namespace ns3;
 
@@ -92,6 +96,8 @@ static AppStats g_stats;
 static const uint16_t kAodvPort = 654;
 static uint64_t g_ctrlPkts = 0;
 static uint64_t g_ctrlBytes = 0;
+static uint64_t g_helloPkts = 0;  // subset ctrl: hello AODV (RREP broadcast)
+static uint64_t g_helloBytes = 0;
 static Time g_warmupTime;
 
 static void
@@ -109,12 +115,108 @@ OnIpTx(Ptr<const Packet> packet, Ptr<Ipv4>, uint32_t)
         return;
     }
     UdpHeader udp;
-    q->PeekHeader(udp);
+    q->RemoveHeader(udp);
     if (udp.GetDestinationPort() == kAodvPort)
     {
         g_ctrlPkts++;
         g_ctrlBytes += packet->GetSize(); // termasuk header IP dan UDP
+
+        // Hello AODV = RREP (tipe 2, byte pertama payload) yang dikirim ke alamat broadcast
+        // (RFC 3561 bagian 6.9). RREP biasa selalu unicast, jadi syarat broadcast cukup.
+        if (q->GetSize() >= 1)
+        {
+            uint8_t type = 0;
+            q->CopyData(&type, 1);
+            Ipv4Address d = ip.GetDestination();
+            if (type == 2 && (d.IsBroadcast() || d.IsSubnetDirectedBroadcast(Ipv4Mask("255.255.255.0"))))
+            {
+                g_helloPkts++;
+                g_helloBytes += packet->GetSize();
+            }
+        }
     }
+}
+
+// ---- Validasi CP3 ----
+// (a) Bukti relay: hitung paket DATA (UDP port 9) yang di-forward tiap node.
+static const uint16_t kDataPort = 9;
+static std::vector<uint64_t> g_fwdData; // indeks = id node
+
+static void
+OnFwd(uint32_t nodeId, const Ipv4Header& ip, Ptr<const Packet> packet, uint32_t)
+{
+    if (Simulator::Now() < g_warmupTime || ip.GetProtocol() != 17)
+    {
+        return;
+    }
+    UdpHeader udp;
+    packet->PeekHeader(udp);
+    if (udp.GetDestinationPort() == kDataPort)
+    {
+        g_fwdData[nodeId]++;
+    }
+}
+
+// (b) Cek partisi: tiap 5 s, bangun graf dari posisi + radius (sama dengan RangePropagationLoss),
+// lalu cek apakah pasangan sumber-tujuan terhubung lewat jalur multi-hop apa pun.
+// Ini batas atas yang "diizinkan topologi", bukan prediksi PDR AODV.
+static uint64_t g_connSamples = 0;
+static uint64_t g_connAllOk = 0; // seluruh node dalam 1 komponen
+static uint64_t g_pairSamples = 0;
+static uint64_t g_pairOk = 0;     // pasangan (i, i+6) terhubung
+
+static void
+CheckConn(NodeContainer nodes, double range, uint32_t nFlows, Time stop)
+{
+    if (Simulator::Now() > stop)
+    {
+        return;
+    }
+    const uint32_t n = nodes.GetN();
+    std::vector<Vector> pos(n);
+    for (uint32_t i = 0; i < n; i++)
+    {
+        pos[i] = nodes.Get(i)->GetObject<MobilityModel>()->GetPosition();
+    }
+    std::vector<int> comp(n, -1);
+    int nComp = 0;
+    for (uint32_t s = 0; s < n; s++)
+    {
+        if (comp[s] >= 0)
+        {
+            continue;
+        }
+        std::vector<uint32_t> stack{s};
+        comp[s] = nComp;
+        while (!stack.empty())
+        {
+            uint32_t u = stack.back();
+            stack.pop_back();
+            for (uint32_t v = 0; v < n; v++)
+            {
+                if (comp[v] < 0 && CalculateDistance(pos[u], pos[v]) <= range)
+                {
+                    comp[v] = nComp;
+                    stack.push_back(v);
+                }
+            }
+        }
+        nComp++;
+    }
+    g_connSamples++;
+    if (nComp == 1)
+    {
+        g_connAllOk++;
+    }
+    for (uint32_t f = 0; f < nFlows; f++)
+    {
+        g_pairSamples++;
+        if (comp[f] == comp[f + nFlows])
+        {
+            g_pairOk++;
+        }
+    }
+    Simulator::Schedule(Seconds(5.0), &CheckConn, nodes, range, nFlows, stop);
 }
 
 static void
@@ -274,6 +376,13 @@ main(int argc, char* argv[])
     Ipv4InterfaceContainer interfaces = address.Assign(devices);
 
     g_warmupTime = Seconds(warmup);
+    g_fwdData.assign(allNodes.GetN(), 0);
+    for (uint32_t i = 0; i < allNodes.GetN(); i++)
+    {
+        allNodes.Get(i)->GetObject<Ipv4L3Protocol>()->TraceConnectWithoutContext(
+            "UnicastForward",
+            MakeBoundCallback(&OnFwd, i));
+    }
     Config::ConnectWithoutContext("/NodeList/*/$ns3::Ipv4L3Protocol/Tx", MakeCallback(&OnIpTx));
 
     NS_LOG_UNCOND("variant=" << variant << " seed=" << seed << " withStatic=" << withStatic
@@ -309,6 +418,8 @@ main(int argc, char* argv[])
         Simulator::Schedule(start, &SendOne, source, 0, interval, stopSend);
     }
 
+    Simulator::Schedule(Seconds(warmup), &CheckConn, allNodes, range, nFlows, stopSend);
+
     if (debugPos)
     {
         for (double t : {100.0, 300.0, 500.0})
@@ -325,9 +436,25 @@ main(int argc, char* argv[])
     double meanDelay = g_stats.rcvd > 0 ? g_stats.delaySum / g_stats.rcvd : 0.0;
     double overhead = g_stats.rcvdBytes > 0 ? double(g_ctrlBytes) / g_stats.rcvdBytes : 0.0;
 
+    uint64_t fwdMobile = 0;
+    uint64_t fwdStatic = 0;
+    for (uint32_t i = 0; i < allNodes.GetN(); i++)
+    {
+        (i < nMobile ? fwdMobile : fwdStatic) += g_fwdData[i];
+        if (i >= nMobile)
+        {
+            NS_LOG_UNCOND("  node statis " << i << " meneruskan " << g_fwdData[i] << " paket data");
+        }
+    }
+    double connAllPct = g_connSamples ? 100.0 * g_connAllOk / g_connSamples : 0.0;
+    double connPairPct = g_pairSamples ? 100.0 * g_pairOk / g_pairSamples : 0.0;
+
     NS_LOG_UNCOND("sent=" << g_stats.sent << " rcvd=" << g_stats.rcvd << " PDR=" << pdr
                           << "% meanDelay=" << meanDelay << " s ctrlPkts=" << g_ctrlPkts
-                          << " ctrlBytes=" << g_ctrlBytes << " overhead=" << overhead);
+                          << " ctrlBytes=" << g_ctrlBytes << " overhead=" << overhead
+                          << " helloBytes=" << g_helloBytes << " fwdStatic=" << fwdStatic
+                          << " fwdMobile=" << fwdMobile << " connPair=" << connPairPct
+                          << "% connAll=" << connAllPct << "%");
 
     // ---- CSV per run: satu header, satu baris. Parameter ikut dicatat untuk reproduksibilitas ----
     std::filesystem::create_directories(outDir);
@@ -336,11 +463,14 @@ main(int argc, char* argv[])
     std::ofstream out(path);
     NS_ABORT_MSG_UNLESS(out.is_open(), "Gagal membuka " << path);
     out << "variant,seed,nMobile,nStatic,range_m,simTime_s,warmup_s,"
-           "sent,rcvd,pdr_pct,mean_delay_s,ctrl_pkts,ctrl_bytes,rcvd_bytes,overhead\n";
+           "sent,rcvd,pdr_pct,mean_delay_s,ctrl_pkts,ctrl_bytes,rcvd_bytes,overhead,"
+           "hello_pkts,hello_bytes,fwd_static_data,fwd_mobile_data,conn_pair_pct,conn_all_pct\n";
     out << variant << "," << seed << "," << nMobile << "," << (withStatic ? nStatic : 0) << ","
         << range << "," << simTime << "," << warmup << "," << g_stats.sent << ","
         << g_stats.rcvd << "," << pdr << "," << meanDelay << "," << g_ctrlPkts << ","
-        << g_ctrlBytes << "," << g_stats.rcvdBytes << "," << overhead << "\n";
+        << g_ctrlBytes << "," << g_stats.rcvdBytes << "," << overhead << "," << g_helloPkts << ","
+        << g_helloBytes << "," << fwdStatic << "," << fwdMobile << "," << connPairPct << ","
+        << connAllPct << "\n";
     out.close();
     NS_LOG_UNCOND("CSV: " << path);
 

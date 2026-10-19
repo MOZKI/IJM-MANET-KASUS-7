@@ -1,2 +1,2 @@
-variant,seed,nMobile,nStatic,range_m,simTime_s,warmup_s,sent,rcvd,pdr_pct,mean_delay_s,ctrl_pkts,ctrl_bytes,rcvd_bytes,overhead
-A,1,12,0,250,600,60,1608,1465,91.107,0.0190808,8853,426872,187520,2.27641
+variant,seed,nMobile,nStatic,range_m,simTime_s,warmup_s,sent,rcvd,pdr_pct,mean_delay_s,ctrl_pkts,ctrl_bytes,rcvd_bytes,overhead,hello_pkts,hello_bytes,fwd_static_data,fwd_mobile_data,conn_pair_pct,conn_all_pct
+A,1,12,0,250,600,60,1608,1465,91.107,0.0190808,8853,426872,187520,2.27641,5546,266208,0,919,93.3642,82.4074
