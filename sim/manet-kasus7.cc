@@ -1,417 +1,349 @@
 /*
- * Copyright (c) 2011 University of Kansas
+ * IJM Kasus 7: MANET hibrida pos pengungsian.
+ * Varian A: 12 node bergerak saja. Varian B: 12 node bergerak + 4 node statis.
+ * Routing AODV, Wi-Fi 802.11b ad hoc, RangePropagationLoss.
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * Dasar: examples/routing/manet-routing-compare.cc (ns-3.49)
  *
- * Author: Justin Rohrer <rohrej@ittc.ku.edu>
- *
- * James P.G. Sterbenz <jpgs@ittc.ku.edu>, director
- * ResiliNets Research Group  https://resilinets.org/
- * Information and Telecommunication Technology Center (ITTC)
- * and Department of Electrical Engineering and Computer Science
- * The University of Kansas Lawrence, KS USA.
- *
- * Work supported in part by NSF FIND (Future Internet Design) Program
- * under grant CNS-0626918 (Postmodern Internet Architecture),
- * NSF grant CNS-1050226 (Multilayer Network Resilience Analysis and Experimentation on GENI),
- * US Department of Defense (DoD), and ITTC at The University of Kansas.
- */
-
-/*
- * This example program allows one to run ns-3 DSDV, DSR, AODV, or OLSR under
- * a typical random waypoint mobility model.
- *
- * By default, the simulation runs for 200 simulated seconds, of which
- * the first 100 are used for start-up time.  The number of nodes is 50.
- * Nodes move according to RandomWaypointMobilityModel with a speed of
- * 20 m/s and no pause time within a 300x1500 m region.  The WiFi is
- * in ad hoc mode with a 11 Mb/s rate (802.11b) and a Friis loss model.
- * The transmit power is set to 7.5 dBm.
- *
- * It is possible to change the mobility and density of the network by
- * directly modifying the speed and the number of nodes.  It is also
- * possible to change the characteristics of the network by changing
- * the transmit power (as power increases, the impact of mobility
- * decreases and the effective density increases).
- *
- * By default, AODV is used, but specifying a string of 'OLSR', 'DSDV', or
- * 'DSR' to the protocol command-line argument will change the protocol.
- *
- * By default, there are 10 source/sink data pairs sending UDP data
- * at an application rate of 2.048 Kb/s each.    This is typically done
- * at a rate of 4 64-byte packets per second.  Application data is
- * started at a random time between 100 and 101 seconds and continues
- * to the end of the simulation.
- *
- * The program outputs a few items:
- * - packet receptions are notified to stdout such as:
- *   <timestamp> <node-id> received one packet from <src-address>
- * - each second, the data reception statistics are tabulated and output
- *   to a comma-separated value (csv) file
- * - mobility traces of the nodes are printed to 'manet-routing-compare.mob';
- *   this trace can be disabled using a command-line argument
- * - some tracing and flow monitor configuration that used to work is
- *   left commented inline in the program
+ * STATUS: Step 4 (PDR, delay, overhead ke CSV per run). CP2 selesai.
  */
 
 #include "ns3/aodv-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/core-module.h"
-#include "ns3/dsdv-module.h"
-#include "ns3/dsr-module.h"
-#include "ns3/flow-monitor-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/network-module.h"
-#include "ns3/olsr-module.h"
 #include "ns3/yans-wifi-helper.h"
 
+#include "ns3/ipv4-header.h"
+#include "ns3/udp-header.h"
+
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 using namespace ns3;
-using namespace dsr;
 
-NS_LOG_COMPONENT_DEFINE("manet-routing-compare");
+NS_LOG_COMPONENT_DEFINE("manet-kasus7");
 
 /**
- * Routing experiment class.
- *
- * It handles the creation and run of an experiment.
+ * Allocator waypoint: memilih ACAK satu dari daftar titik tiap dipanggil.
+ * (ListPositionAllocator bawaan memilih berurutan, bukan acak.)
  */
-class RoutingExperiment
+class WaypointAllocator : public PositionAllocator
 {
   public:
-    RoutingExperiment();
-    /**
-     * Run the experiment.
-     */
-    void Run();
+    static TypeId GetTypeId()
+    {
+        static TypeId tid = TypeId("ns3::WaypointAllocator")
+                                .SetParent<PositionAllocator>()
+                                .SetGroupName("Mobility")
+                                .AddConstructor<WaypointAllocator>();
+        return tid;
+    }
 
-    /**
-     * Handles the command-line parameters.
-     * @param argc The argument count.
-     * @param argv The argument vector.
-     */
-    void CommandSetup(int argc, char** argv);
+    WaypointAllocator()
+    {
+        m_rv = CreateObject<UniformRandomVariable>();
+    }
+
+    void Add(Vector v)
+    {
+        m_points.push_back(v);
+    }
+
+    Vector GetNext() const override
+    {
+        uint32_t i = m_rv->GetInteger(0, static_cast<uint32_t>(m_points.size()) - 1);
+        return m_points[i];
+    }
+
+    int64_t AssignStreams(int64_t stream) override
+    {
+        m_rv->SetStream(stream);
+        return 1;
+    }
 
   private:
-    /**
-     * Setup the receiving socket in a Sink Node.
-     * @param addr The address of the node.
-     * @param node The node pointer.
-     * @return the socket.
-     */
-    Ptr<Socket> SetupPacketReceive(Ipv4Address addr, Ptr<Node> node);
-    /**
-     * Receive a packet.
-     * @param socket The receiving socket.
-     */
-    void ReceivePacket(Ptr<Socket> socket);
-    /**
-     * Compute the throughput.
-     */
-    void CheckThroughput();
-
-    uint32_t port{9};            //!< Receiving port number.
-    uint32_t bytesTotal{0};      //!< Total received bytes.
-    uint32_t packetsReceived{0}; //!< Total received packets.
-
-    std::string m_CSVfileName{"manet-routing.output.csv"}; //!< CSV filename.
-    int m_nSinks{10};                                      //!< Number of sink nodes.
-    std::string m_protocolName{"AODV"};                    //!< Protocol name.
-    double m_txp{7.5};                                     //!< Tx power.
-    bool m_traceMobility{true};                            //!< Enable mobility tracing.
-    bool m_flowMonitor{false};                             //!< Enable FlowMonitor.
+    std::vector<Vector> m_points;
+    Ptr<UniformRandomVariable> m_rv;
 };
 
-RoutingExperiment::RoutingExperiment()
+NS_OBJECT_ENSURE_REGISTERED(WaypointAllocator);
+
+// ---- Trafik: hitung di sisi aplikasi (definisi PDR dan delay di brief bagian 7) ----
+static const uint32_t kPayload = 128; // byte per paket, termasuk SeqTsHeader (12 byte)
+
+struct AppStats
 {
-}
+    uint64_t sent{0};
+    uint64_t rcvd{0};
+    uint64_t rcvdBytes{0}; // byte data diterima aplikasi (penyebut overhead)
+    double delaySum{0.0};  // detik
+};
 
-static inline std::string
-PrintReceivedPacket(Ptr<Socket> socket, Ptr<Packet> packet, Address senderAddress)
+static AppStats g_stats;
+
+// Paket kontrol AODV = UDP port 654 (RREQ, RREP termasuk hello, RERR).
+// Dihitung tiap kali dikirim keluar dari sebuah antarmuka IP (tiap hop dan tiap forward RREQ
+// dihitung), di semua node termasuk node statis, hanya setelah warm-up.
+static const uint16_t kAodvPort = 654;
+static uint64_t g_ctrlPkts = 0;
+static uint64_t g_ctrlBytes = 0;
+static Time g_warmupTime;
+
+static void
+OnIpTx(Ptr<const Packet> packet, Ptr<Ipv4>, uint32_t)
 {
-    std::ostringstream oss;
-
-    oss << Simulator::Now().GetSeconds() << " " << socket->GetNode()->GetId();
-
-    if (InetSocketAddress::IsMatchingType(senderAddress))
+    if (Simulator::Now() < g_warmupTime)
     {
-        InetSocketAddress addr = InetSocketAddress::ConvertFrom(senderAddress);
-        oss << " received one packet from " << addr.GetIpv4();
+        return;
     }
-    else
+    Ptr<Packet> q = packet->Copy();
+    Ipv4Header ip;
+    q->RemoveHeader(ip);
+    if (ip.GetProtocol() != 17) // bukan UDP
     {
-        oss << " received one packet!";
+        return;
     }
-    return oss.str();
-}
-
-void
-RoutingExperiment::ReceivePacket(Ptr<Socket> socket)
-{
-    Ptr<Packet> packet;
-    Address senderAddress;
-    while ((packet = socket->RecvFrom(senderAddress)))
+    UdpHeader udp;
+    q->PeekHeader(udp);
+    if (udp.GetDestinationPort() == kAodvPort)
     {
-        bytesTotal += packet->GetSize();
-        packetsReceived += 1;
-        NS_LOG_UNCOND(PrintReceivedPacket(socket, packet, senderAddress));
+        g_ctrlPkts++;
+        g_ctrlBytes += packet->GetSize(); // termasuk header IP dan UDP
     }
 }
 
-void
-RoutingExperiment::CheckThroughput()
+static void
+SendOne(Ptr<Socket> sock, uint32_t seq, Time interval, Time stop)
 {
-    double kbs = (bytesTotal * 8.0) / 1000;
-    bytesTotal = 0;
-
-    std::ofstream out(m_CSVfileName, std::ios::app);
-
-    out << (Simulator::Now()).GetSeconds() << "," << kbs << "," << packetsReceived << ","
-        << m_nSinks << "," << m_protocolName << "," << m_txp << "" << std::endl;
-
-    out.close();
-    packetsReceived = 0;
-    Simulator::Schedule(Seconds(1), &RoutingExperiment::CheckThroughput, this);
-}
-
-Ptr<Socket>
-RoutingExperiment::SetupPacketReceive(Ipv4Address addr, Ptr<Node> node)
-{
-    TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
-    Ptr<Socket> sink = Socket::CreateSocket(node, tid);
-    InetSocketAddress local = InetSocketAddress(addr, port);
-    sink->Bind(local);
-    sink->SetRecvCallback(MakeCallback(&RoutingExperiment::ReceivePacket, this));
-
-    return sink;
-}
-
-void
-RoutingExperiment::CommandSetup(int argc, char** argv)
-{
-    CommandLine cmd(__FILE__);
-    cmd.AddValue("CSVfileName", "The name of the CSV output file name", m_CSVfileName);
-    cmd.AddValue("traceMobility", "Enable mobility tracing", m_traceMobility);
-    cmd.AddValue("protocol", "Routing protocol (OLSR, AODV, DSDV, DSR)", m_protocolName);
-    cmd.AddValue("flowMonitor", "enable FlowMonitor", m_flowMonitor);
-    cmd.Parse(argc, argv);
-
-    std::vector<std::string> allowedProtocols{"OLSR", "AODV", "DSDV", "DSR"};
-
-    if (std::find(std::begin(allowedProtocols), std::end(allowedProtocols), m_protocolName) ==
-        std::end(allowedProtocols))
+    if (Simulator::Now() >= stop)
     {
-        NS_FATAL_ERROR("No such protocol:" << m_protocolName);
+        return;
     }
+    SeqTsHeader h;
+    h.SetSeq(seq);
+    Ptr<Packet> p = Create<Packet>(kPayload - h.GetSerializedSize());
+    p->AddHeader(h);
+    sock->Send(p);
+    g_stats.sent++;
+    Simulator::Schedule(interval, &SendOne, sock, seq + 1, interval, stop);
+}
+
+static void
+OnRecv(Ptr<Socket> sock)
+{
+    Ptr<Packet> p;
+    Address from;
+    while ((p = sock->RecvFrom(from)))
+    {
+        g_stats.rcvdBytes += p->GetSize();
+        SeqTsHeader h;
+        p->RemoveHeader(h);
+        g_stats.rcvd++;
+        g_stats.delaySum += (Simulator::Now() - h.GetTs()).GetSeconds();
+    }
+}
+
+// Hanya untuk validasi gerak identik antar varian (aktif dengan --debugPos=1).
+static void
+PrintPos(Ptr<Node> n)
+{
+    Vector p = n->GetObject<MobilityModel>()->GetPosition();
+    NS_LOG_UNCOND("t=" << Simulator::Now().GetSeconds() << " node" << n->GetId() << " (" << p.x
+                       << "," << p.y << ")");
 }
 
 int
 main(int argc, char* argv[])
 {
-    RoutingExperiment experiment;
-    experiment.CommandSetup(argc, argv);
-    experiment.Run();
+    // ---- Parameter (nilai default = brief bagian 4, semuanya ASUMSI) ----
+    std::string variant = "A"; // A = tanpa node statis, B = dengan 4 node statis
+    uint32_t seed = 1;         // RngRun, 1..15
+    uint32_t nMobile = 12;
+    uint32_t nStatic = 4;
+    double range = 250.0;      // m
+    double simTime = 600.0;    // s
+    double warmup = 60.0;      // s, dipakai di Step 3
+    std::string outDir = "results"; // folder CSV, dibuat otomatis kalau belum ada
+    bool debugPos = false;     // cetak posisi beberapa node untuk validasi
 
-    return 0;
-}
+    CommandLine cmd(__FILE__);
+    cmd.AddValue("variant", "A (tanpa node statis) atau B (dengan node statis)", variant);
+    cmd.AddValue("seed", "Nomor run RNG (1..15)", seed);
+    cmd.AddValue("range", "Radius radio (m)", range);
+    cmd.AddValue("simTime", "Durasi simulasi (s)", simTime);
+    cmd.AddValue("warmup", "Warm-up sebelum trafik mulai (s)", warmup);
+    cmd.AddValue("outDir", "Folder keluaran CSV", outDir);
+    cmd.AddValue("debugPos", "Cetak posisi node 0 dan 1 pada t=100,300,500", debugPos);
+    cmd.Parse(argc, argv);
 
-void
-RoutingExperiment::Run()
-{
-    Packet::EnablePrinting();
+    NS_ABORT_MSG_IF(variant != "A" && variant != "B", "variant harus A atau B");
+    const bool withStatic = (variant == "B");
 
-    // blank out the last output file and write the column headers
-    std::ofstream out(m_CSVfileName);
-    out << "SimulationSecond,"
-        << "ReceiveRate,"
-        << "PacketsReceived,"
-        << "NumberOfSinks,"
-        << "RoutingProtocol,"
-        << "TransmissionPower" << std::endl;
-    out.close();
+    // Seed tetap 1, yang divariasikan nomor run. Harus dipanggil sebelum membuat objek acak apa pun.
+    RngSeedManager::SetSeed(1);
+    RngSeedManager::SetRun(seed);
 
-    int nWifis = 50;
+    Config::SetDefault("ns3::WifiRemoteStationManager::NonUnicastMode",
+                       StringValue("DsssRate11Mbps"));
 
-    double TotalTime = 200.0;
-    std::string rate("2048bps");
-    std::string phyMode("DsssRate11Mbps");
-    std::string tr_name("manet-routing-compare");
-    int nodeSpeed = 20; // in m/s
-    int nodePause = 0;  // in s
+    // ---- Node ----
+    // Node bergerak dibuat DULUAN (id 0..11) supaya id dan IP mereka identik di A dan B.
+    NodeContainer mobileNodes;
+    mobileNodes.Create(nMobile);
+    NodeContainer staticNodes;
+    if (withStatic)
+    {
+        staticNodes.Create(nStatic); // id 12..15, hanya di varian B
+    }
+    NodeContainer allNodes(mobileNodes, staticNodes);
 
-    Config::SetDefault("ns3::OnOffApplication::PacketSize", StringValue("64"));
-    Config::SetDefault("ns3::OnOffApplication::DataRate", StringValue(rate));
-
-    // Set Non-unicastMode rate to unicast mode
-    Config::SetDefault("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue(phyMode));
-
-    NodeContainer adhocNodes;
-    adhocNodes.Create(nWifis);
-
-    // setting up wifi phy and channel using helpers
+    // ---- Wi-Fi ad hoc + RangePropagationLoss ----
     WifiHelper wifi;
     wifi.SetStandard(WIFI_STANDARD_80211b);
 
-    YansWifiPhyHelper wifiPhy;
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-    wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel");
+    wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
+                                   "MaxRange",
+                                   DoubleValue(range));
+    YansWifiPhyHelper wifiPhy;
     wifiPhy.SetChannel(wifiChannel.Create());
 
-    // Add a mac and disable rate control
-    WifiMacHelper wifiMac;
     wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
                                  "DataMode",
-                                 StringValue(phyMode),
+                                 StringValue("DsssRate11Mbps"),
                                  "ControlMode",
-                                 StringValue(phyMode));
-
-    wifiPhy.Set("TxPowerStart", DoubleValue(m_txp));
-    wifiPhy.Set("TxPowerEnd", DoubleValue(m_txp));
-
+                                 StringValue("DsssRate11Mbps"));
+    WifiMacHelper wifiMac;
     wifiMac.SetType("ns3::AdhocWifiMac");
-    NetDeviceContainer adhocDevices = wifi.Install(wifiPhy, wifiMac, adhocNodes);
+    NetDeviceContainer devices = wifi.Install(wifiPhy, wifiMac, allNodes);
 
-    MobilityHelper mobilityAdhoc;
-    int64_t streamIndex = 0; // used to get consistent mobility across scenarios
+    // ---- Mobilitas ----
+    // 12 petugas: RandomWaypoint, waypoint = 4 pos + 4 titik tengah antar pos.
+    Ptr<WaypointAllocator> waypoints = CreateObject<WaypointAllocator>();
+    waypoints->Add(Vector(200, 200, 0));
+    waypoints->Add(Vector(600, 200, 0));
+    waypoints->Add(Vector(200, 600, 0));
+    waypoints->Add(Vector(600, 600, 0));
+    waypoints->Add(Vector(400, 200, 0));
+    waypoints->Add(Vector(200, 400, 0));
+    waypoints->Add(Vector(600, 400, 0));
+    waypoints->Add(Vector(400, 600, 0));
 
-    ObjectFactory pos;
-    pos.SetTypeId("ns3::RandomRectanglePositionAllocator");
-    pos.Set("X", StringValue("ns3::UniformRandomVariable[Min=0.0|Max=300.0]"));
-    pos.Set("Y", StringValue("ns3::UniformRandomVariable[Min=0.0|Max=1500.0]"));
+    // Stream RNG mobilitas ditetapkan eksplisit supaya gerak petugas identik di A dan B.
+    // Hanya mobileNodes yang di-assign, jadi menambah node statis tidak menggeser stream.
+    int64_t streamIndex = 0;
+    streamIndex += waypoints->AssignStreams(streamIndex);
 
-    Ptr<PositionAllocator> taPositionAlloc = pos.Create()->GetObject<PositionAllocator>();
-    streamIndex += taPositionAlloc->AssignStreams(streamIndex);
+    MobilityHelper mobileMob;
+    mobileMob.SetMobilityModel("ns3::RandomWaypointMobilityModel",
+                               "Speed",
+                               StringValue("ns3::UniformRandomVariable[Min=1.0|Max=5.0]"),
+                               "Pause",
+                               StringValue("ns3::UniformRandomVariable[Min=30.0|Max=120.0]"),
+                               "PositionAllocator",
+                               PointerValue(waypoints));
+    mobileMob.SetPositionAllocator(waypoints);
+    mobileMob.Install(mobileNodes);
+    streamIndex += mobileMob.AssignStreams(mobileNodes, streamIndex);
 
-    std::stringstream ssSpeed;
-    ssSpeed << "ns3::UniformRandomVariable[Min=0.0|Max=" << nodeSpeed << "]";
-    std::stringstream ssPause;
-    ssPause << "ns3::ConstantRandomVariable[Constant=" << nodePause << "]";
-    mobilityAdhoc.SetMobilityModel("ns3::RandomWaypointMobilityModel",
-                                   "Speed",
-                                   StringValue(ssSpeed.str()),
-                                   "Pause",
-                                   StringValue(ssPause.str()),
-                                   "PositionAllocator",
-                                   PointerValue(taPositionAlloc));
-    mobilityAdhoc.SetPositionAllocator(taPositionAlloc);
-    mobilityAdhoc.Install(adhocNodes);
-    streamIndex += mobilityAdhoc.AssignStreams(adhocNodes, streamIndex);
+    // Node statis di 4 pos. Container kosong di varian A, jadi Install() tidak melakukan apa-apa.
+    Ptr<ListPositionAllocator> staticPos = CreateObject<ListPositionAllocator>();
+    staticPos->Add(Vector(200, 200, 0));
+    staticPos->Add(Vector(600, 200, 0));
+    staticPos->Add(Vector(200, 600, 0));
+    staticPos->Add(Vector(600, 600, 0));
+    MobilityHelper staticMob;
+    staticMob.SetPositionAllocator(staticPos);
+    staticMob.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    staticMob.Install(staticNodes);
 
+    // ---- AODV + IP ----
     AodvHelper aodv;
-    OlsrHelper olsr;
-    DsdvHelper dsdv;
-    DsrHelper dsr;
-    DsrMainHelper dsrMain;
-    Ipv4ListRoutingHelper list;
     InternetStackHelper internet;
+    internet.SetRoutingHelper(aodv);
+    internet.Install(allNodes);
 
-    if (m_protocolName == "OLSR")
+    Ipv4AddressHelper address;
+    address.SetBase("10.1.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer interfaces = address.Assign(devices);
+
+    g_warmupTime = Seconds(warmup);
+    Config::ConnectWithoutContext("/NodeList/*/$ns3::Ipv4L3Protocol/Tx", MakeCallback(&OnIpTx));
+
+    NS_LOG_UNCOND("variant=" << variant << " seed=" << seed << " withStatic=" << withStatic
+                             << " totalNodes=" << allNodes.GetN() << " range=" << range);
+
+    // ---- Trafik: 6 aliran UDP petugas ke petugas, 128 byte tiap 2 s ----
+    // Pasangan tetap dan identik di A dan B: node i mengirim ke node i+6 (i = 0..5).
+    // Pengiriman berhenti 5 s sebelum simulasi usai (ASUMSI) supaya paket terakhir sempat tiba
+    // dan PDR tidak terpotong oleh akhir simulasi.
+    const uint16_t port = 9;
+    const uint32_t nFlows = 6;
+    const Time interval = Seconds(2.0);
+    const Time stopSend = Seconds(simTime - 5.0);
+
+    // Jitter waktu mulai 0..1 s per aliran, stream eksplisit agar sama di A dan B.
+    Ptr<UniformRandomVariable> startJitter = CreateObject<UniformRandomVariable>();
+    startJitter->SetStream(streamIndex++);
+
+    TypeId udp = TypeId::LookupByName("ns3::UdpSocketFactory");
+    for (uint32_t i = 0; i < nFlows; i++)
     {
-        list.Add(olsr, 100);
-        internet.SetRoutingHelper(list);
-        internet.Install(adhocNodes);
+        uint32_t src = i;
+        uint32_t dst = i + nFlows;
+
+        Ptr<Socket> sink = Socket::CreateSocket(mobileNodes.Get(dst), udp);
+        sink->Bind(InetSocketAddress(Ipv4Address::GetAny(), port));
+        sink->SetRecvCallback(MakeCallback(&OnRecv));
+
+        Ptr<Socket> source = Socket::CreateSocket(mobileNodes.Get(src), udp);
+        source->Connect(InetSocketAddress(interfaces.GetAddress(dst), port));
+
+        Time start = Seconds(warmup + startJitter->GetValue(0.0, 1.0));
+        Simulator::Schedule(start, &SendOne, source, 0, interval, stopSend);
     }
-    else if (m_protocolName == "AODV")
+
+    if (debugPos)
     {
-        list.Add(aodv, 100);
-        internet.SetRoutingHelper(list);
-        internet.Install(adhocNodes);
-    }
-    else if (m_protocolName == "DSDV")
-    {
-        list.Add(dsdv, 100);
-        internet.SetRoutingHelper(list);
-        internet.Install(adhocNodes);
-    }
-    else if (m_protocolName == "DSR")
-    {
-        internet.Install(adhocNodes);
-        dsrMain.Install(dsr, adhocNodes);
-        if (m_flowMonitor)
+        for (double t : {100.0, 300.0, 500.0})
         {
-            NS_FATAL_ERROR("Error: FlowMonitor does not work with DSR. Terminating.");
+            Simulator::Schedule(Seconds(t), &PrintPos, mobileNodes.Get(0));
+            Simulator::Schedule(Seconds(t), &PrintPos, mobileNodes.Get(1));
         }
     }
-    else
-    {
-        NS_FATAL_ERROR("No such protocol:" << m_protocolName);
-    }
 
-    NS_LOG_INFO("assigning ip address");
-
-    Ipv4AddressHelper addressAdhoc;
-    addressAdhoc.SetBase("10.1.1.0", "255.255.255.0");
-    Ipv4InterfaceContainer adhocInterfaces;
-    adhocInterfaces = addressAdhoc.Assign(adhocDevices);
-
-    OnOffHelper onoff1("ns3::UdpSocketFactory", Address());
-    onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
-    onoff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
-
-    for (int i = 0; i < m_nSinks; i++)
-    {
-        Ptr<Socket> sink = SetupPacketReceive(adhocInterfaces.GetAddress(i), adhocNodes.Get(i));
-
-        AddressValue remoteAddress(InetSocketAddress(adhocInterfaces.GetAddress(i), port));
-        onoff1.SetAttribute("Remote", remoteAddress);
-
-        Ptr<UniformRandomVariable> var = CreateObject<UniformRandomVariable>();
-        ApplicationContainer temp = onoff1.Install(adhocNodes.Get(i + m_nSinks));
-        temp.Start(Seconds(var->GetValue(100.0, 101.0)));
-        temp.Stop(Seconds(TotalTime));
-    }
-
-    std::stringstream ss;
-    ss << nWifis;
-    std::string nodes = ss.str();
-
-    std::stringstream ss2;
-    ss2 << nodeSpeed;
-    std::string sNodeSpeed = ss2.str();
-
-    std::stringstream ss3;
-    ss3 << nodePause;
-    std::string sNodePause = ss3.str();
-
-    std::stringstream ss4;
-    ss4 << rate;
-    std::string sRate = ss4.str();
-
-    // NS_LOG_INFO("Configure Tracing.");
-    // tr_name = tr_name + "_" + m_protocolName +"_" + nodes + "nodes_" + sNodeSpeed + "speed_" +
-    // sNodePause + "pause_" + sRate + "rate";
-
-    // AsciiTraceHelper ascii;
-    // Ptr<OutputStreamWrapper> osw = ascii.CreateFileStream(tr_name + ".tr");
-    // wifiPhy.EnableAsciiAll(osw);
-    AsciiTraceHelper ascii;
-    if (m_traceMobility)
-    {
-        MobilityHelper::EnableAsciiAll(ascii.CreateFileStream(tr_name + ".mob"));
-    }
-
-    FlowMonitorHelper flowmonHelper;
-    Ptr<FlowMonitor> flowmon;
-    if (m_flowMonitor)
-    {
-        flowmon = flowmonHelper.InstallAll();
-    }
-
-    NS_LOG_INFO("Run Simulation.");
-
-    CheckThroughput();
-
-    Simulator::Stop(Seconds(TotalTime));
+    Simulator::Stop(Seconds(simTime));
     Simulator::Run();
 
-    if (m_flowMonitor)
-    {
-        flowmon->SerializeToXmlFile(tr_name + ".flowmon", false, false);
-    }
+    double pdr = g_stats.sent > 0 ? 100.0 * g_stats.rcvd / g_stats.sent : 0.0;
+    double meanDelay = g_stats.rcvd > 0 ? g_stats.delaySum / g_stats.rcvd : 0.0;
+    double overhead = g_stats.rcvdBytes > 0 ? double(g_ctrlBytes) / g_stats.rcvdBytes : 0.0;
+
+    NS_LOG_UNCOND("sent=" << g_stats.sent << " rcvd=" << g_stats.rcvd << " PDR=" << pdr
+                          << "% meanDelay=" << meanDelay << " s ctrlPkts=" << g_ctrlPkts
+                          << " ctrlBytes=" << g_ctrlBytes << " overhead=" << overhead);
+
+    // ---- CSV per run: satu header, satu baris. Parameter ikut dicatat untuk reproduksibilitas ----
+    std::filesystem::create_directories(outDir);
+    std::string seedStr = (seed < 10 ? "0" : "") + std::to_string(seed);
+    std::string path = outDir + "/result_" + variant + "_seed" + seedStr + ".csv";
+    std::ofstream out(path);
+    NS_ABORT_MSG_UNLESS(out.is_open(), "Gagal membuka " << path);
+    out << "variant,seed,nMobile,nStatic,range_m,simTime_s,warmup_s,"
+           "sent,rcvd,pdr_pct,mean_delay_s,ctrl_pkts,ctrl_bytes,rcvd_bytes,overhead\n";
+    out << variant << "," << seed << "," << nMobile << "," << (withStatic ? nStatic : 0) << ","
+        << range << "," << simTime << "," << warmup << "," << g_stats.sent << ","
+        << g_stats.rcvd << "," << pdr << "," << meanDelay << "," << g_ctrlPkts << ","
+        << g_ctrlBytes << "," << g_stats.rcvdBytes << "," << overhead << "\n";
+    out.close();
+    NS_LOG_UNCOND("CSV: " << path);
 
     Simulator::Destroy();
+    return 0;
 }
