@@ -1,0 +1,2 @@
+variant,seed,nMobile,nStatic,range_m,simTime_s,warmup_s,sent,rcvd,pdr_pct,mean_delay_s,ctrl_pkts,ctrl_bytes,rcvd_bytes,overhead,hello_pkts,hello_bytes,fwd_static_data,fwd_mobile_data,conn_pair_pct,conn_all_pct
+B,12,12,4,250,600,60,1608,1352,84.0796,0.00668029,13570,650266,173056,3.75755,7372,353856,151,1579,96.6049,86.1111

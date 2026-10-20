@@ -1,0 +1,164 @@
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+Finished executing the following commands:
+/opt/homebrew/bin/cmake --build /Users/mohammadzaki/manet/ns-3-dev/cmake-cache -j 7
+[1/30] lewati A seed=1 (CSV sudah ada)
+[2/30] lewati B seed=1 (CSV sudah ada)
+[3/30] 05:58:46 variant=A seed=2
+variant=A seed=2 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1487 PDR=92.4751% meanDelay=0.0153866 s ctrlPkts=8280 ctrlBytes=397886 overhead=2.09044 helloBytes=278832 fwdStatic=0 fwdMobile=1149 connPair=95.3704% connAll=86.1111%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed02.csv
+[4/30] 05:58:48 variant=B seed=2
+variant=B seed=2 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 2 paket data
+  node statis 13 meneruskan 2 paket data
+  node statis 14 meneruskan 30 paket data
+  node statis 15 meneruskan 18 paket data
+sent=1608 rcvd=1448 PDR=90.0498% meanDelay=0.00671826 s ctrlPkts=12119 ctrlBytes=580574 overhead=3.13241 helloBytes=367824 fwdStatic=52 fwdMobile=1076 connPair=95.3704% connAll=86.1111%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed02.csv
+[5/30] 05:58:49 variant=A seed=3
+variant=A seed=3 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1429 PDR=88.8682% meanDelay=0.0255137 s ctrlPkts=9692 ctrlBytes=469908 overhead=2.56904 helloBytes=251616 fwdStatic=0 fwdMobile=1300 connPair=91.2037% connAll=67.5926%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed03.csv
+[6/30] 05:58:50 variant=B seed=3
+variant=B seed=3 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 16 paket data
+  node statis 13 meneruskan 0 paket data
+  node statis 14 meneruskan 15 paket data
+  node statis 15 meneruskan 16 paket data
+sent=1608 rcvd=1436 PDR=89.3035% meanDelay=0.0207314 s ctrlPkts=13103 ctrlBytes=633854 overhead=3.44846 helloBytes=333648 fwdStatic=47 fwdMobile=1285 connPair=91.2037% connAll=67.5926%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed03.csv
+[7/30] 05:58:52 variant=A seed=4
+variant=A seed=4 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1485 PDR=92.3507% meanDelay=0.00685522 s ctrlPkts=8858 ctrlBytes=425674 overhead=2.23945 helloBytes=278160 fwdStatic=0 fwdMobile=1404 connPair=96.2963% connAll=88.8889%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed04.csv
+[8/30] 05:58:53 variant=B seed=4
+variant=B seed=4 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 45 paket data
+  node statis 13 meneruskan 74 paket data
+  node statis 14 meneruskan 7 paket data
+  node statis 15 meneruskan 22 paket data
+sent=1608 rcvd=1473 PDR=91.6045% meanDelay=0.0101688 s ctrlPkts=12358 ctrlBytes=593044 overhead=3.14539 helloBytes=365856 fwdStatic=148 fwdMobile=1248 connPair=96.2963% connAll=88.8889%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed04.csv
+[9/30] 05:58:54 variant=A seed=5
+variant=A seed=5 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1578 PDR=98.1343% meanDelay=0.0100541 s ctrlPkts=8074 ctrlBytes=387614 overhead=1.91903 helloBytes=290592 fwdStatic=0 fwdMobile=948 connPair=99.537% connAll=97.2222%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed05.csv
+[10/30] 05:58:55 variant=B seed=5
+variant=B seed=5 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 2 paket data
+  node statis 13 meneruskan 35 paket data
+  node statis 14 meneruskan 1 paket data
+  node statis 15 meneruskan 10 paket data
+sent=1608 rcvd=1573 PDR=97.8234% meanDelay=0.00837504 s ctrlPkts=11379 ctrlBytes=542720 overhead=2.69549 helloBytes=387456 fwdStatic=48 fwdMobile=883 connPair=99.537% connAll=97.2222%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed05.csv
+[11/30] 05:58:57 variant=A seed=6
+variant=A seed=6 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1556 PDR=96.7662% meanDelay=0.00653363 s ctrlPkts=9726 ctrlBytes=462202 overhead=2.32066 helloBytes=282480 fwdStatic=0 fwdMobile=1643 connPair=100% connAll=100%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed06.csv
+[12/30] 05:58:58 variant=B seed=6
+variant=B seed=6 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 71 paket data
+  node statis 13 meneruskan 22 paket data
+  node statis 14 meneruskan 23 paket data
+  node statis 15 meneruskan 1 paket data
+sent=1608 rcvd=1518 PDR=94.403% meanDelay=0.00362427 s ctrlPkts=12377 ctrlBytes=586256 overhead=3.01721 helloBytes=386592 fwdStatic=117 fwdMobile=1462 connPair=100% connAll=100%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed06.csv
+[13/30] 05:59:00 variant=A seed=7
+variant=A seed=7 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1511 PDR=93.9677% meanDelay=0.00319352 s ctrlPkts=8335 ctrlBytes=403400 overhead=2.08575 helloBytes=266640 fwdStatic=0 fwdMobile=878 connPair=96.2963% connAll=85.1852%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed07.csv
+[14/30] 05:59:01 variant=B seed=7
+variant=B seed=7 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 27 paket data
+  node statis 13 meneruskan 27 paket data
+  node statis 14 meneruskan 61 paket data
+  node statis 15 meneruskan 0 paket data
+sent=1608 rcvd=1567 PDR=97.4502% meanDelay=0.00368025 s ctrlPkts=11215 ctrlBytes=537254 overhead=2.67856 helloBytes=370128 fwdStatic=115 fwdMobile=842 connPair=99.537% connAll=99.0741%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed07.csv
+[15/30] 05:59:02 variant=A seed=8
+variant=A seed=8 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1377 PDR=85.6343% meanDelay=0.0262167 s ctrlPkts=8591 ctrlBytes=412734 overhead=2.34167 helloBytes=279168 fwdStatic=0 fwdMobile=1503 connPair=96.4506% connAll=89.8148%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed08.csv
+[16/30] 05:59:03 variant=B seed=8
+variant=B seed=8 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 111 paket data
+  node statis 13 meneruskan 12 paket data
+  node statis 14 meneruskan 75 paket data
+  node statis 15 meneruskan 37 paket data
+sent=1608 rcvd=1527 PDR=94.9627% meanDelay=0.024397 s ctrlPkts=13489 ctrlBytes=642878 overhead=3.28912 helloBytes=369120 fwdStatic=235 fwdMobile=1637 connPair=98.7654% connAll=94.4444%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed08.csv
+[17/30] 05:59:05 variant=A seed=9
+variant=A seed=9 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1488 PDR=92.5373% meanDelay=0.00948816 s ctrlPkts=8855 ctrlBytes=428610 overhead=2.25035 helloBytes=263712 fwdStatic=0 fwdMobile=1367 connPair=96.142% connAll=95.3704%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed09.csv
+[18/30] 05:59:06 variant=B seed=9
+variant=B seed=9 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 121 paket data
+  node statis 13 meneruskan 35 paket data
+  node statis 14 meneruskan 8 paket data
+  node statis 15 meneruskan 117 paket data
+sent=1608 rcvd=1574 PDR=97.8856% meanDelay=0.00653477 s ctrlPkts=10896 ctrlBytes=518906 overhead=2.57557 helloBytes=396672 fwdStatic=281 fwdMobile=1376 connPair=100% connAll=100%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed09.csv
+[19/30] 05:59:07 variant=A seed=10
+variant=A seed=10 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1464 PDR=91.0448% meanDelay=0.056756 s ctrlPkts=9976 ctrlBytes=482636 overhead=2.57554 helloBytes=258864 fwdStatic=0 fwdMobile=1426 connPair=93.5185% connAll=80.5556%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed10.csv
+[20/30] 05:59:09 variant=B seed=10
+variant=B seed=10 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 124 paket data
+  node statis 13 meneruskan 39 paket data
+  node statis 14 meneruskan 10 paket data
+  node statis 15 meneruskan 15 paket data
+sent=1608 rcvd=1463 PDR=90.9826% meanDelay=0.0248399 s ctrlPkts=11891 ctrlBytes=571450 overhead=3.05157 helloBytes=375504 fwdStatic=188 fwdMobile=1403 connPair=98.7654% connAll=92.5926%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed10.csv
+[21/30] 05:59:10 variant=A seed=11
+variant=A seed=11 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1447 PDR=89.9876% meanDelay=0.0224951 s ctrlPkts=9080 ctrlBytes=438776 overhead=2.369 helloBytes=259968 fwdStatic=0 fwdMobile=1038 connPair=95.9877% connAll=84.2593%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed11.csv
+[22/30] 05:59:11 variant=B seed=11
+variant=B seed=11 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 1 paket data
+  node statis 13 meneruskan 8 paket data
+  node statis 14 meneruskan 5 paket data
+  node statis 15 meneruskan 124 paket data
+sent=1608 rcvd=1532 PDR=95.2736% meanDelay=0.016434 s ctrlPkts=12416 ctrlBytes=594218 overhead=3.03024 helloBytes=370224 fwdStatic=138 fwdMobile=1151 connPair=97.8395% connAll=87.037%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed11.csv
+[23/30] 05:59:13 variant=A seed=12
+variant=A seed=12 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1422 PDR=88.4328% meanDelay=0.0371903 s ctrlPkts=9274 ctrlBytes=452450 overhead=2.48577 helloBytes=243984 fwdStatic=0 fwdMobile=1505 connPair=94.1358% connAll=79.6296%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed12.csv
+[24/30] 05:59:14 variant=B seed=12
+variant=B seed=12 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 40 paket data
+  node statis 13 meneruskan 32 paket data
+  node statis 14 meneruskan 43 paket data
+  node statis 15 meneruskan 36 paket data
+sent=1608 rcvd=1352 PDR=84.0796% meanDelay=0.00668029 s ctrlPkts=13570 ctrlBytes=650266 overhead=3.75755 helloBytes=353856 fwdStatic=151 fwdMobile=1579 connPair=96.6049% connAll=86.1111%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed12.csv
+[25/30] 05:59:16 variant=A seed=13
+variant=A seed=13 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1560 PDR=97.0149% meanDelay=0.00976172 s ctrlPkts=8294 ctrlBytes=396838 overhead=1.98737 helloBytes=292896 fwdStatic=0 fwdMobile=1445 connPair=99.537% connAll=97.2222%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed13.csv
+[26/30] 05:59:17 variant=B seed=13
+variant=B seed=13 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 121 paket data
+  node statis 13 meneruskan 0 paket data
+  node statis 14 meneruskan 5 paket data
+  node statis 15 meneruskan 0 paket data
+sent=1608 rcvd=1536 PDR=95.5224% meanDelay=0.0102053 s ctrlPkts=11366 ctrlBytes=543266 overhead=2.76319 helloBytes=388464 fwdStatic=126 fwdMobile=1251 connPair=99.537% connAll=97.2222%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed13.csv
+[27/30] 05:59:18 variant=A seed=14
+variant=A seed=14 withStatic=false totalNodes=12 range=250
+sent=1608 rcvd=1571 PDR=97.699% meanDelay=0.00738496 s ctrlPkts=8407 ctrlBytes=402264 overhead=2.00044 helloBytes=297888 fwdStatic=0 fwdMobile=1693 connPair=100% connAll=100%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_A_seed14.csv
+[28/30] 05:59:19 variant=B seed=14
+variant=B seed=14 withStatic=true totalNodes=16 range=250
+  node statis 12 meneruskan 59 paket data
+  node statis 13 meneruskan 39 paket data
+  node statis 14 meneruskan 0 paket data
+  node statis 15 meneruskan 0 paket data
+sent=1608 rcvd=1545 PDR=96.0821% meanDelay=0.00525776 s ctrlPkts=11673 ctrlBytes=556906 overhead=2.81607 helloBytes=391872 fwdStatic=98 fwdMobile=1546 connPair=100% connAll=100%
+CSV: /Users/mohammadzaki/IJM-MANET-KASUS-7/results/raw/result_B_seed14.csv
+[29/30] 05:59:21 variant=A seed=15
+variant=A seed=15 withStatic=false totalNodes=12 range=250
